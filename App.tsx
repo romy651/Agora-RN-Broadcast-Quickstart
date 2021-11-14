@@ -13,6 +13,7 @@ import RtcEngine, {
   ClientRole,
   ChannelProfile,
 } from 'react-native-agora';
+import RNFetchBlob from 'rn-fetch-blob';
 
 import requestCameraAndAudioPermission from './components/Permission';
 import styles from './components/Style';
@@ -23,8 +24,11 @@ import styles from './components/Style';
  * @property channelName Channel Name for the current session
  */
 const token = null;
-const appId = '<Agora App ID>';
-const channelName = 'channel-x';
+const appId = '579dd418a824485989bdb75c1f7673fb';
+const channelName = 'romyChanel';
+
+export const AGORATOKENURL =
+  'https://us-central1-connect-c0152.cloudfunctions.net/app/';
 
 /**
  * @property isHost Boolean value to select between broadcaster and audience
@@ -35,6 +39,8 @@ interface State {
   isHost: boolean;
   joinSucceed: boolean;
   peerIds: number[];
+  token: any,
+  uid: number
 }
 
 export default class App extends Component<null, State> {
@@ -42,9 +48,12 @@ export default class App extends Component<null, State> {
 
   constructor(props) {
     super(props);
+    const uid = Math.floor(Math.random() * (9999 - 1000 + 1)) + 1000;
     this.state = {
       isHost: true,
       joinSucceed: false,
+      token: null,
+      uid,
       peerIds: [],
     };
     if (Platform.OS === 'android') {
@@ -64,6 +73,10 @@ export default class App extends Component<null, State> {
    * @description Function to initialize the Rtc Engine, attach event listeners and actions
    */
   init = async () => {
+    const token = await getToken('romyChanel', this.state.uid, 0);
+
+    this.setState({token})
+
     this._engine = await RtcEngine.create(appId);
     await this._engine.enableVideo();
     await this._engine?.setChannelProfile(ChannelProfile.LiveBroadcasting);
@@ -135,7 +148,8 @@ export default class App extends Component<null, State> {
    */
   startCall = async () => {
     // Join Channel using null token and channel name
-    await this._engine?.joinChannel(token, channelName, null, 0);
+    console.log('we join with the token: ', this.state.token)
+    await this._engine?.joinChannel(this.state.token, channelName, null, this.state.uid);
   };
 
   /**
@@ -211,4 +225,11 @@ export default class App extends Component<null, State> {
       </ScrollView>
     );
   };
+}
+
+const getToken = async (channelName: string, uid: number, role: number): Promise<string> => {
+  const data = await RNFetchBlob.fetch('GET', `${AGORATOKENURL}?channelName=${channelName}&uid=${uid}&role=${role}`)
+  const token = JSON.parse(data.data).token as string
+  //console.log('THE RESULT FROM THE SERVER. ', JSON.parse(data.data).token)
+  return token
 }
